@@ -1,0 +1,174 @@
+import os
+import zipfile
+import urllib.request as url
+import pandas as pd
+import numpy as np
+import pickle
+from music21 import converter, instrument, note, chord
+import random
+
+
+
+def download_data(path):
+    """
+    Download the midi data from the website, which is approximately 300KB.
+    The data (a .tar.gz file) will be store in the given path.
+    Args:
+        @path: path where the data saved/to be saved
+    """
+    # If the path doesn't exist, create it first
+    if not os.path.exists(path):
+        os.mkdir(path)
+    # If the data hasn't been downloaded yet, download it
+    if not os.path.exists(path+'midi_data.zip'):
+        print('Start downloading midi_data...')
+        url.urlretrieve("http://www.piano-midi.de/zip/chopin.zip",
+                        path+"midi_data.zip")
+        print('Download complete.')
+    else:
+        print('midi_data.zip already exists.')
+        
+def unpack_data(path, zipfile_name):
+    """
+    Unpack the zipfile. The unpacked data will be store in the given path.
+    Args:
+        @path: path where the data saved/to be saved
+    """
+    # If the data hasn't been downloaded yet, download it first
+    if not os.path.exists(path+zipfile_name+'.zip'):
+        if zipfile_name == 'midi_data':
+            download_data(path)
+        else:
+            print(zipfile_name+'.zip not exist. Please download first.')
+        
+    else:
+        print(path+zipfile_name+'.zip already exists')
+    # Check if the package has been unpacked, otherwise unpack the package
+    if not os.path.exists(path+zipfile_name):
+        os.mkdir(path+zipfile_name)
+        print('Begin extracting...')
+        with zipfile.ZipFile(path+zipfile_name+'.zip', 'r') as zip_ref:
+            zip_ref.extractall(path+zipfile_name)
+        print('Unzip complete.')
+    else:
+        print(path+zipfile_name+'.zip already unzipped.')
+        
+
+        
+def process_music(path, clean_name):
+    '''
+    Load and transform midi data to matrix 
+    '''
+    
+    print('Start loading midi files...')
+    notes = []
+    for fname in os.listdir(path):
+        if fname[-4:] not in ('.mid','.MID'):
+            continue
+            
+        file_path = path+fname
+        midi = converter.parse(file_path)
+        notes_to_parse = None
+
+        try: # file has instrument parts
+            s2 = instrument.partitionByInstrument(midi)
+            notes_to_parse = s2.parts[0].recurse() 
+        except: # file has notes in a flat structure
+            notes_to_parse = midi.flat.notes
+
+        for element in notes_to_parse:
+            if isinstance(element, note.Note):
+                notes.append(str(element.pitch))
+            elif isinstance(element, chord.Chord):
+                notes.append('.'.join(str(n) for n in element.normalOrder))
+        
+        print("Loaded {}".format(fname))
+        
+    with open(path+clean_name, 'wb') as filepath:
+        pickle.dump(notes, filepath)
+    
+    print('Finish loading, cleaned file saved as {path}/{clean_name}'.format(path=path, clean_name=clean_name))
+        
+    return notes
+    
+
+    
+def prepare_sequences(notes):
+    """ 
+    Prepare the sequences used by the Neural Network 
+    """
+    sequence_length = 100
+
+    # get all pitch names
+    pitchnames = sorted(set(notes))
+    n_vocab = len(pitchnames)
+
+     # create a dictionary to map pitches to integers
+    note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
+
+    network_input = []
+    network_output = []
+
+    # create input sequences and the corresponding outputs
+    for i in range(0, len(notes) - sequence_length, 1):
+        sequence_in = notes[i:i + sequence_length]
+        sequence_out = notes[i + sequence_length]
+        network_input.append([note_to_int[char] for char in sequence_in])
+        network_output.append(note_to_int[sequence_out])
+
+    n_patterns = len(network_input)
+
+    # reshape the input into a format compatible with LSTM layers
+    network_input = np.reshape(network_input, (n_patterns, sequence_length, 1))
+    # normalize input
+    network_input = network_input / float(n_vocab)
+
+#     network_output = np_utils.to_categorical(network_output)
+    network_output = np.array(pd.get_dummies(network_output))
+
+    return (network_input, network_output, pitchnames)
+    
+
+def generate_notes(network_input, pitchnames):
+    """ Generate notes from the neural network based on a sequence of notes """
+    # pick a random sequence from the input as a starting point for the prediction
+    
+    start = np.random.randint(0, network_input.shape[0]-1)
+    int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
+    pattern = network_input[start]
+    n_vocab = len(pitchnames)
+    
+    return pattern, int_to_note, n_vocab
+
+
+def generate_midi(prediction_output, speed=None):
+    offset = 0
+    output_notes = []
+    # create note and chord objects based on the values generated by the model
+    for pattern in prediction_output:
+        # pattern is a chord
+        if ('.' in pattern) or pattern.isdigit():
+            index_in_chord = pattern.split('.')
+            notes = []
+            for note_index in index_in_chord:
+                if note_index.isdigit():
+                    note_index = int(note_index)
+                new_node = note.Note(note_index)
+                new_node.storedInstrument = instrument.Piano()
+                notes.append(new_node)
+            new_chord = chord.Chord(notes)
+            new_chord.offset = offset
+            output_notes.append(new_chord)
+        # pattern is a note
+        else:
+            new_node = note.Note(pattern)
+            new_node.storedInstrument = instrument.Piano()
+            new_node.offset = offset
+            output_notes.append(new_node)
+        # increase offset each iteration so that notes do not stack
+        if speed == None:
+            offset += 0.5
+        else:
+            offset += round(random.uniform(0, speed),2)
+        
+    return output_notes

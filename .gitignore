@@ -1,0 +1,43 @@
+#################
+#Temporary files#
+#################
+*.swp
+*.pyc
+.env/*
+
+###############
+# Model  files #
+###############
+models/*
+
+###############
+# Data  files #
+###############
+data/*
+
+###############
+# Other files #
+###############
+.ipynb_checkpoints/*
+*.ipynb_checkpoints
+*__pycache__
+.idea/*
+references/*
+packages/*
+biaxial-rnn-music-composition-master
+old/*
+download_chopin.ipynb
+mary.mid
+learn.md
+notes.md
+test_output_20.mid
+test_output_40.mid
+test_output_60.mid
+test_output_80.mid
+test_output_no_50.mid
+test_output_no_80.mid
+test_output_no_100.mid
+
+
+
+
