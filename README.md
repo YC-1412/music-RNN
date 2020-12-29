@@ -1,11 +1,19 @@
 # music-RNN
 This project generates music based on Chopin's music using LSTM, and scrapes midi files online. 
 
+## Instruction
+1. Clone this repository 
+2. Run "music_simple.ipynb"
+
 ## Required packages
 ```
 pip install --upgrade music21
 pip install tensorflow==2.2
 ```
+
+## Result
+- A trained model "model-chopin_100.h5" in the [model folder](https://github.com/YC-1412/music_RNN/tree/main/models)
+- Generated music midi file "test_output_100.mid" and it's pdf in the [output folder](https://github.com/YC-1412/music_RNN/tree/main/output)
 
 ## Data
 95 midi files of Chopin's music scraped from https://www.midiworld.com/chopin.htm
