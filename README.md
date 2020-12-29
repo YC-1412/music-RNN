@@ -1,5 +1,5 @@
 # music-RNN
-This project generates music based on Chopin's music using LSTM, and scrapes midi files online. 
+This project generates music based on Chopin's music using LSTM. 
 
 ## Instruction
 1. Clone this repository 
