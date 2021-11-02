@@ -1,8 +1,7 @@
 # music-RNN
 This project generates music based on Chopin's music using LSTM. 
 
-Sample out put:
-[Sample audio (100 epochs)](https://user-images.githubusercontent.com/54824364/139856754-2de56a95-f7ef-483c-9665-9b0cc7e02beb.mp4)
+[Sample audio (click to play)](output/test_output_100.mp4)
 
 ## Instruction
 1. Clone this repository 
